@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "stomatacount"
+version = "0.1.0"
+description = "Automatic stomata counting using Roboflow object detection models."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "inference-sdk",
+    "opencv-python",
+    "pandas",
+    "numpy",
+    "pillow",
+    "python-dotenv",
+    "tqdm",
+    "streamlit"
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
