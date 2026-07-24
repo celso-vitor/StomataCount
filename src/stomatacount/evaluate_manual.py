@@ -244,11 +244,19 @@ def build_comparison(
             + f"\n\nDiagnostic files saved to: {diagnostic_dir}"
         )
 
-    relative_path = (
-        merged["relative_path"]
-        if "relative_path" in merged.columns
-        else merged["image"]
-    )
+    if "image_auto" in merged.columns:
+        image_file = merged["image_auto"]
+    elif "image" in merged.columns:
+        image_file = merged["image"]
+    else:
+        image_file = ""
+
+    if "relative_path_auto" in merged.columns:
+        relative_path = merged["relative_path_auto"]
+    elif "relative_path" in merged.columns:
+        relative_path = merged["relative_path"]
+    else:
+        relative_path = image_file
 
     comparison = pd.DataFrame(
         {
@@ -256,7 +264,7 @@ def build_comparison(
             "plant_id_auto": merged["plant_id_auto"],
             "plant_id_manual": merged["plant_id_manual"],
             "image_index": merged["image_index"],
-            "image_file": merged["image"],
+            "image_file": image_file,
             "relative_path": relative_path,
             "stomatacount": pd.to_numeric(merged["total_stomata"], errors="coerce"),
             "Gab": merged["Gab"],
