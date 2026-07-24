@@ -10,7 +10,7 @@ Repository: https://github.com/celso-vitor/StomataCount
 
 ## Current version
 
-**v0.2.0 — Roboflow-based detection and validation**
+**v0.2.1 â€” Roboflow-based detection and validation**
 
 This version introduces a Roboflow-based workflow for automated stomatal detection and counting.
 
