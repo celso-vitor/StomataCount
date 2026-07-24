@@ -1,38 +1,45 @@
-# StomataCount (SC)
+# StomataCount
 
-**StomataCount (SC)** is an open-source image analysis tool developed to automate the quantification of stomata in leaf epidermis images captured through optical microscopy. Designed specifically for *Coffea canephora*, this tool supports high-throughput phenotyping, reduces human error, and enhances consistency in morphological studies.
+**StomataCount** is an open-source tool for automated stomatal counting in microscopy images using object detection.
 
----
+The current version integrates a Roboflow-hosted detection model with batch image processing, annotated image generation, manual-vs-automatic validation, statistical analysis, and timing comparison between manual and automated counting.
 
-## Project Objective
-
-To apply computer vision techniques for the automated and reproducible analysis of plant microscopic structures, improving data quality and analytical efficiency in plant science research.
+Repository: https://github.com/celso-vitor/StomataCount
 
 ---
 
-## Key Features
+## Current version
 
-- **Fully automated image processing pipeline**
-  - Grayscale conversion
-  - Contrast enhancement using CLAHE
-  - Noise reduction via median filtering
-  - Otsu’s thresholding for binarization
-  - Morphological operations: dilation, erosion, and opening
+**v0.2.0 — Roboflow-based detection and validation**
 
-- **Stomata detection**
-  - Circular structure detection via Hough Circle Transform
-  - Overlap filtering to avoid double-counting
+This version introduces a Roboflow-based workflow for automated stomatal detection and counting.
 
-- **Visual result validation**
-  - Circles drawn over detected stomata
-  - Side-by-side display of original and processed images
+## Main features
 
-- **Customizable detection parameters**
-  ```python
-  dp = 1.2            # Inverse resolution ratio
-  minDist = 10        # Minimum distance between circle centers
-  param1 = 100        # Edge detection threshold
-  param2 = 28         # Circle center detection threshold
-  minRadius = 5       # Minimum stomata radius
-  maxRadius = 30      # Maximum stomata radius
+- Automated stomatal detection using a Roboflow object detection model
+- Batch processing of microscopy images
+- Support for plant/sample-oriented folder structures
+- Annotated images with bounding boxes
+- CSV summaries by image and by plant/sample
+- Manual-vs-automatic count comparison
+- Statistical validation of automatic counts
+- Timing analysis comparing manual and automated counting
+- Streamlit interface for interactive use
 
+---
+
+## Scientific motivation
+
+Manual stomatal counting is time-consuming, repetitive, and subject to inter-observer variability. StomataCount aims to accelerate and standardize stomatal quantification by combining image-based object detection with reproducible data analysis.
+
+The tool is being developed as part of a methodological workflow for plant phenotyping, biotechnology, and biological image analysis.
+
+---
+
+## Installation
+
+Clone the repository:
+
+```bash
+git clone https://github.com/celso-vitor/StomataCount.git
+cd StomataCount

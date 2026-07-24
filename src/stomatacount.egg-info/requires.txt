@@ -1,8 +1,0 @@
-inference-sdk
-opencv-python
-pandas
-numpy
-pillow
-python-dotenv
-tqdm
-streamlit

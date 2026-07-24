@@ -34,3 +34,7 @@ data/manual/
 Thumbs.db
 .vscode/
 .idea/
+
+# Generated package metadata
+*.egg-info/
+src/stomatacount.egg-info/
