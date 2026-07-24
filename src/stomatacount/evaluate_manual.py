@@ -5,7 +5,8 @@ import numpy as np
 import pandas as pd
 
 
-REPLICATE_COLUMNS = ["Gab", "Leo", "Nic"]
+REPLICATE_COLUMNS = ["Count_1", "Count_2", "Count_3"]
+LEGACY_REPLICATE_COLUMNS = {"Gab": "Count_1", "Leo": "Count_2", "Nic": "Count_3"}
 
 
 def short_plant_label(plant_id: str) -> str:
@@ -39,6 +40,15 @@ def add_automatic_image_index(auto: pd.DataFrame) -> pd.DataFrame:
 
 def prepare_manual_counts(manual: pd.DataFrame, ignore_zero: bool = True) -> pd.DataFrame:
     manual = manual.copy()
+
+    # Backward compatibility: allow older manual files using observer names.
+    legacy_columns_found = {
+        old_name: new_name
+        for old_name, new_name in LEGACY_REPLICATE_COLUMNS.items()
+        if old_name in manual.columns and new_name not in manual.columns
+    }
+    if legacy_columns_found:
+        manual = manual.rename(columns=legacy_columns_found)
 
     required_columns = {"plant_id", "image_index", *REPLICATE_COLUMNS}
     missing = required_columns - set(manual.columns)
@@ -267,9 +277,9 @@ def build_comparison(
             "image_file": image_file,
             "relative_path": relative_path,
             "stomatacount": pd.to_numeric(merged["total_stomata"], errors="coerce"),
-            "Gab": merged["Gab"],
-            "Leo": merged["Leo"],
-            "Nic": merged["Nic"],
+            "Count_1": merged["Count_1"],
+            "Count_2": merged["Count_2"],
+            "Count_3": merged["Count_3"],
             "manual_n": merged["manual_n"],
             "manual_mean": merged["manual_mean"],
             "manual_sd": merged["manual_sd"],
