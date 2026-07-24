@@ -1,4 +1,4 @@
-import argparse
+﻿import argparse
 from pathlib import Path
 
 import numpy as np
@@ -16,6 +16,14 @@ def short_plant_label(plant_id: str) -> str:
 def add_automatic_image_index(auto: pd.DataFrame) -> pd.DataFrame:
     auto = auto.copy()
 
+    required_columns = {"plant_id", "image", "total_stomata"}
+    missing = required_columns - set(auto.columns)
+    if missing:
+        raise ValueError(
+            "Automatic results file is missing required columns: "
+            + ", ".join(sorted(missing))
+        )
+
     auto["plant_label"] = auto["plant_id"].apply(short_plant_label)
 
     if "relative_path" in auto.columns:
@@ -32,7 +40,16 @@ def add_automatic_image_index(auto: pd.DataFrame) -> pd.DataFrame:
 def prepare_manual_counts(manual: pd.DataFrame, ignore_zero: bool = True) -> pd.DataFrame:
     manual = manual.copy()
 
+    required_columns = {"plant_id", "image_index", *REPLICATE_COLUMNS}
+    missing = required_columns - set(manual.columns)
+    if missing:
+        raise ValueError(
+            "Manual counts file is missing required columns: "
+            + ", ".join(sorted(missing))
+        )
+
     manual["plant_label"] = manual["plant_id"].apply(short_plant_label)
+    manual["image_index"] = pd.to_numeric(manual["image_index"], errors="coerce")
 
     for column in REPLICATE_COLUMNS:
         manual[column] = pd.to_numeric(manual[column], errors="coerce")
@@ -91,11 +108,6 @@ def calculate_metrics(df: pd.DataFrame) -> dict:
 def build_metrics_by_plant(comparison: pd.DataFrame) -> pd.DataFrame:
     rows = []
 
-    for plant, group in comparison.groupby("plant"):
-        metrics = calculate_metrics(group)
-        metrics["plant"] = plant
-        rows.append(metrics)
-
     columns = [
         "plant",
         "n_images",
@@ -108,10 +120,21 @@ def build_metrics_by_plant(comparison: pd.DataFrame) -> pd.DataFrame:
         "correlation",
     ]
 
+    for plant, group in comparison.groupby("plant"):
+        metrics = calculate_metrics(group)
+        metrics["plant"] = plant
+        rows.append(metrics)
+
+    if not rows:
+        return pd.DataFrame(columns=columns)
+
     return pd.DataFrame(rows)[columns]
 
 
 def save_wide_matrices(comparison: pd.DataFrame, output_dir: Path) -> None:
+    if comparison.empty:
+        return
+
     automatic_matrix = comparison.pivot(
         index="image_index",
         columns="plant",
@@ -139,6 +162,44 @@ def save_wide_matrices(comparison: pd.DataFrame, output_dir: Path) -> None:
     difference_matrix.to_csv(output_dir / "difference_matrix.csv")
 
 
+def describe_dataset_mismatch(auto: pd.DataFrame, manual: pd.DataFrame) -> str:
+    automatic_plant_ids = sorted(auto["plant_id"].astype(str).unique())
+    manual_plant_ids = sorted(manual["plant_id"].astype(str).unique())
+
+    automatic_labels = sorted(auto["plant_label"].astype(str).unique())
+    manual_labels = sorted(manual["plant_label"].astype(str).unique())
+
+    matching_labels = sorted(set(automatic_labels) & set(manual_labels))
+    only_auto_labels = sorted(set(automatic_labels) - set(manual_labels))
+    only_manual_labels = sorted(set(manual_labels) - set(automatic_labels))
+
+    message = [
+        "No matching rows found between automatic results and manual counts.",
+        "",
+        "This usually means that results.csv and manual_counts.csv belong to different datasets,",
+        "or that plant_id/image_index values do not match.",
+        "",
+        "Automatic plant_id values:",
+        *[f"  - {x}" for x in automatic_plant_ids],
+        "",
+        "Manual plant_id values:",
+        *[f"  - {x}" for x in manual_plant_ids],
+        "",
+        "Matching short plant labels:",
+        *([f"  - {x}" for x in matching_labels] if matching_labels else ["  - none"]),
+        "",
+        "Short plant labels only in automatic results:",
+        *([f"  - {x}" for x in only_auto_labels] if only_auto_labels else ["  - none"]),
+        "",
+        "Short plant labels only in manual counts:",
+        *([f"  - {x}" for x in only_manual_labels] if only_manual_labels else ["  - none"]),
+        "",
+        "Check whether the automatic results and manual_counts.csv correspond to the same images.",
+    ]
+
+    return "\n".join(message)
+
+
 def build_comparison(
     auto: pd.DataFrame,
     manual: pd.DataFrame,
@@ -157,12 +218,46 @@ def build_comparison(
         how="inner",
     )
 
+    if merged.empty:
+        mismatch_message = describe_dataset_mismatch(auto, manual)
+
+        diagnostic_dir = output_dir / "diagnostics"
+        diagnostic_dir.mkdir(parents=True, exist_ok=True)
+
+        auto[["plant_id", "plant_label", "image_index", "image"]].to_csv(
+            diagnostic_dir / "automatic_keys.csv",
+            index=False,
+        )
+
+        manual[["plant_id", "plant_label", "image_index", *REPLICATE_COLUMNS]].to_csv(
+            diagnostic_dir / "manual_keys.csv",
+            index=False,
+        )
+
+        (diagnostic_dir / "dataset_mismatch.txt").write_text(
+            mismatch_message,
+            encoding="utf-8",
+        )
+
+        raise ValueError(
+            mismatch_message
+            + f"\n\nDiagnostic files saved to: {diagnostic_dir}"
+        )
+
+    relative_path = (
+        merged["relative_path"]
+        if "relative_path" in merged.columns
+        else merged["image"]
+    )
+
     comparison = pd.DataFrame(
         {
             "plant": merged["plant_label"],
+            "plant_id_auto": merged["plant_id_auto"],
+            "plant_id_manual": merged["plant_id_manual"],
             "image_index": merged["image_index"],
             "image_file": merged["image"],
-            "relative_path": merged.get("relative_path", merged["image"]),
+            "relative_path": relative_path,
             "stomatacount": pd.to_numeric(merged["total_stomata"], errors="coerce"),
             "Gab": merged["Gab"],
             "Leo": merged["Leo"],
@@ -233,6 +328,7 @@ def main() -> None:
     automatic_path = Path(args.automatic)
     manual_path = Path(args.manual)
     output_base = Path(args.output)
+    output_base.mkdir(parents=True, exist_ok=True)
 
     auto = pd.read_csv(automatic_path)
     manual = pd.read_csv(manual_path)
@@ -240,11 +336,10 @@ def main() -> None:
     auto = add_automatic_image_index(auto)
     manual = prepare_manual_counts(manual, ignore_zero=True)
 
-    automatic_order = auto[
-        ["plant_label", "image_index", "image", "relative_path"]
-        if "relative_path" in auto.columns
-        else ["plant_label", "image_index", "image"]
-    ]
+    if "relative_path" in auto.columns:
+        automatic_order = auto[["plant_id", "plant_label", "image_index", "image", "relative_path"]]
+    else:
+        automatic_order = auto[["plant_id", "plant_label", "image_index", "image"]]
 
     automatic_order.to_csv(output_base / "automatic_image_order.csv", index=False)
 
